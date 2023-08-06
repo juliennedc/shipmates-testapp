@@ -18,7 +18,6 @@ import {
   FormMessage,
 } from "../ui/form";
 
-import Link from "next/link";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -29,13 +28,16 @@ import { Input } from "../ui/input";
 const FormSchema = z.object({
   pickupAddress1: z.string().min(2).max(50),
   pickupAddress2: z.string().min(2).max(50),
-  pickupZipcode: z.string().min(5).max(5),
-  pickupProvince: z.string(),
-  pickupCity: z.string(),
-  pickupCountry: z.string(),
-  // pickupProvince: z.object({ id: z.string(), name: z.string() }),
-  // pickupCity: z.object({ id: z.string(), name: z.string() }),
-  // pickupCountry: z.object({ id: z.string(), name: z.string() }),
+  pickupZipcode: z.string().min(4).max(4),
+  pickupProvince: z.string() || z.undefined(),
+  pickupCity: z.string() || z.undefined(),
+  pickupCountry: z.string() || z.undefined(),
+  deliveryAddress1: z.string().min(2).max(50),
+  deliveryAddress2: z.string().max(50),
+  deliveryZipcode: z.string().min(4).max(4),
+  deliveryProvince: z.string(),
+  deliveryCity: z.string(),
+  deliveryCountry: z.string(),
 });
 
 const PointToPointForm = () => {
@@ -45,12 +47,20 @@ const PointToPointForm = () => {
       pickupAddress1: "",
       pickupAddress2: "",
       pickupZipcode: "",
-      pickupProvince: "",
-      pickupCity: "",
-      pickupCountry: "",
+      pickupProvince: undefined,
+      pickupCity: undefined,
+      pickupCountry: undefined,
+      deliveryAddress1: "",
+      deliveryAddress2: "",
+      deliveryZipcode: "",
+      deliveryProvince: undefined,
+      deliveryCity: undefined,
+      deliveryCountry: undefined,
     },
   });
+
   function onSubmit(data: z.infer<typeof FormSchema>) {
+    console.log("julie submit", data);
     toast({
       title: "You submitted the following values:",
       description: (
@@ -60,7 +70,6 @@ const PointToPointForm = () => {
       ),
     });
   }
-
   const [provinces, setProvinces] = useState([]);
   const [pickupCities, setPickupCities] = useState([]);
   const [deliveryCities, setDeliveryCities] = useState([]);
@@ -72,13 +81,9 @@ const PointToPointForm = () => {
 
   const fetchProvinces = async () => {
     try {
-      const response = await axios.get(
-        "https://ph-locations-api.buonzz.com/v1/provinces"
-      );
-      console.log("julie client", response.data.data);
-      const provinceList = response.data.data.filter(
-        (item) => item.name != "CITY OF MANILA"
-      );
+      const response = await axios.get("https://psgc.gitlab.io/api/provinces/");
+      console.log("julie res", response.data);
+      const provinceList = response.data;
       setProvinces(provinceList);
     } catch (error) {
       console.error("Error fetching provinces:", error);
@@ -87,10 +92,12 @@ const PointToPointForm = () => {
 
   const fetchCities = async (provinceCode, setter) => {
     try {
+      console.log("julie prov", provinceCode);
       const response = await axios.get(
-        `https://ph-locations-api.buonzz.com/v1/cities?province_code=${provinceCode}`
+        `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities`
       );
-      setter(response.data.data);
+      console.log("julie city", provinceCode, response.data);
+      setter(response.data);
     } catch (error) {
       console.error("Error fetching cities:", error);
     }
@@ -98,8 +105,294 @@ const PointToPointForm = () => {
 
   const onChangeSelect = (e, field, setter) => {
     console.log("julie field", e, field);
-    field.onChange();
+    field.onChange(e);
+    // field.value = e;
     fetchCities(e, setter);
+  };
+  const getPickupInputs = () => {
+    return (
+      <>
+        <FormField
+          control={form.control}
+          name="pickupAddress1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address 1</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Address 1" {...field} />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="pickupAddress2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address 2</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Address 2" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="pickupProvince"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Province</FormLabel>
+              <Select
+                onValueChange={
+                  // field.onChange
+                  (e) => {
+                    onChangeSelect(e, field, setPickupCities);
+                  }
+                }
+                value={field.value}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select Province"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {provinces &&
+                    provinces.length > 0 &&
+                    provinces.map(({ code, name }, index) => (
+                      <SelectItem key={`${code}-${index}`} value={code}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="pickupCity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>City</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select City"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {pickupCities &&
+                    pickupCities.length > 0 &&
+                    pickupCities.map(({ code, name }) => (
+                      <SelectItem key={`${code}-pickup`} value={code}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="pickupCountry"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select Country"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={"Philippines"}>Philippines</SelectItem>
+                </SelectContent>
+              </Select>{" "}
+              <FormMessage />
+            </FormItem>
+          )}
+        />{" "}
+        <FormField
+          control={form.control}
+          name="pickupZipcode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Zip Code</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Zip Code" {...field} />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </>
+    );
+  };
+  const getDeliveryInputs = () => {
+    return (
+      <>
+        <FormField
+          control={form.control}
+          name="deliveryAddress1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address 1</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Address 1" {...field} />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="deliveryAddress2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address 2</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Address 2" {...field} />
+              </FormControl>
+              <FormDescription>
+                This is your public display name.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="deliveryProvince"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Province</FormLabel>
+              <Select
+                onValueChange={
+                  // field.onChange
+                  (e) => {
+                    onChangeSelect(e, field, setDeliveryCities);
+                  }
+                }
+                value={field.value}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select Province"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {provinces &&
+                    provinces.length > 0 &&
+                    provinces.map(({ code, name }, index) => (
+                      <SelectItem key={`${code}-${index}`} value={code}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="deliveryCity"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>City</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select City"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {deliveryCities &&
+                    deliveryCities.length > 0 &&
+                    deliveryCities.map(({ code, name }) => (
+                      <SelectItem key={`${code}`} value={code}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>{" "}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="deliveryCountry"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      className="w-[180px] text-slate-950"
+                      placeholder="Select Country"
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={"Philippines"}>Philippines</SelectItem>
+                </SelectContent>
+              </Select>{" "}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="deliveryZipcode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Zip Code</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter Zip Code" {...field} />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </>
+    );
   };
   return (
     <main>
@@ -108,202 +401,13 @@ const PointToPointForm = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="w-2/3 space-y-6"
         >
-          <FormField
-            control={form.control}
-            name="pickupAddress1"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address 1</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter Address 1" {...field} />
-                </FormControl>
-                <FormDescription>
-                  This is your public display name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="pickupAddress2"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address 1</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter Address 2" {...field} />
-                </FormControl>
-                <FormDescription>
-                  This is your public display name.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="pickupProvince"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Province</FormLabel>
-                <Select
-                  onValueChange={
-                    // field.onChange
-                    (e) => onChangeSelect(e, field, setPickupCities)
-                  }
-                  // value={field.value}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue
-                        className="w-[180px] text-slate-950"
-                        placeholder="Select Province"
-                      />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {provinces &&
-                      provinces.length > 0 &&
-                      provinces.map(({ id, name }, index) => (
-                        <SelectItem key={`${id}-${index}`} value={id}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="pickupCity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>City</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue
-                        className="w-[180px] text-slate-950"
-                        placeholder="Select City"
-                      />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {pickupCities &&
-                      pickupCities.length > 0 &&
-                      pickupCities.map(({ id, name }) => (
-                        <SelectItem key={`${id}-pickup`} value={id}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
+          {getPickupInputs()}
+          {getDeliveryInputs()}
           <Button type="submit">Submit</Button>
         </form>
       </Form>
     </main>
   );
-  // return (
-  // <div>
-  //   <h1>Shipmates Shipping Fee Calculator</h1>
-  //   <Form onSubmit={handleFormSubmit}>
-  //     {/* Rest of the code remains the same */}
-  //     <label>Pickup Province:</label>
-  //     <br />
-  //     <Select
-  //       value={pickupProvince}
-  //       onValueChange={(e) =>
-  //         handleProvinceChange(e, setPickupCities, pickupProvince)
-  //       }
-  //       required
-  //     >
-  //       <SelectTrigger className="w-[180px]">
-  //         <SelectValue placeholder="Select Province" />
-  //       </SelectTrigger>
-  //       <SelectContent>
-  //         {provinces &&
-  //           provinces.length > 0 &&
-  //           provinces.map(({ id, name }) => (
-  //             <SelectItem key={`${id}-pickup`} value={id}>
-  //               {name}
-  //             </SelectItem>
-  //           ))}
-  //       </SelectContent>
-  //     </Select>
-  //     <br />
-  //     <label>Pickup City:</label>
-  //     <br />
-  //     <Select
-  //       value={pickupCity}
-  //       onValueChange={(e) => setPickupCity(e)}
-  //       required
-  //     >
-  //       <SelectTrigger className="w-[180px]">
-  //         <SelectValue placeholder="Select City" />
-  //       </SelectTrigger>
-  //       <SelectContent>
-  //         {pickupCities.length > 0 &&
-  //           pickupCities.map(({ id, name }) => (
-  //             <SelectItem key={id} value={name}>
-  //               {name}
-  //             </SelectItem>
-  //           ))}
-  //       </SelectContent>
-  //     </Select>
-  //     <br />
-  //     <label>Delivery Province:</label>
-  //     <br />
-  //     <Select
-  //       value={deliveryProvince}
-  //       onValueChange={(e) => handleProvinceChange(e, setDeliveryCities)}
-  //       required
-  //     >
-  //       <SelectTrigger className="w-[180px]">
-  //         <SelectValue placeholder="Select Province" />
-  //       </SelectTrigger>
-  //       <SelectContent>
-  //         {provinces &&
-  //           provinces.length > 0 &&
-  //           provinces.map(({ id, name }) => (
-  //             <SelectItem key={id} value={id}>
-  //               {name}
-  //             </SelectItem>
-  //           ))}
-  //       </SelectContent>
-  //     </Select>
-  //     <br />
-  //     <label>Delivery City:</label>
-  //     <br />
-  //     <Select
-  //       value={deliveryCity}
-  //       onValueChange={(e) => setDeliveryCity(e)}
-  //       required
-  //     >
-  //       <SelectTrigger className="w-[180px]">
-  //         <SelectValue placeholder="Select City" />
-  //       </SelectTrigger>
-  //       <SelectContent>
-  //         {" "}
-  //         {deliveryCities.length > 0 &&
-  //           deliveryCities.map(({ name, id }) => (
-  //             <SelectItem key={`${id}-d`} value={name}>
-  //               {name}
-  //             </SelectItem>
-  //           ))}
-  //       </SelectContent>
-  //     </Select>
-  //     <br />
-  //   </Form>
-  // </div>
-  // );
 };
 
 export default PointToPointForm;
