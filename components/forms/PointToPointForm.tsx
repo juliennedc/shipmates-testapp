@@ -1,8 +1,20 @@
 "use client";
-import React, { useState, Fragment, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import ratesData from "./rates.json";
-import { searchProvince, searchBaranggay } from "ph-geo-admin-divisions";
+import { Fragment, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import CourierTable from "../tables/CourierTable";
+import { Button } from "../ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "../ui/form";
+import { Input } from "../ui/input";
 import {
   Select,
   SelectContent,
@@ -10,41 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "../ui/form";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-import * as z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Button } from "../ui/button";
-import { toast } from "../ui/use-toast";
-import { Input } from "../ui/input";
+import ratesData from "./rates.json";
+import Portlet from "../templates/Portlet";
 
 const FormSchema = z.object({
   pickupAddress1: z.string().min(2).max(50),
-  pickupAddress2: z.string().min(2).max(50),
-  pickupZipcode: z.string().min(4).max(4),
+  pickupAddress2: z.string().max(50).optional(),
+  pickupZipcode: z.string().length(4),
   pickupProvince: z.string() || z.undefined(),
   pickupCity: z.string() || z.undefined(),
   pickupCountry: z.string() || z.undefined(),
-  deliveryAddress1: z.string().min(2).max(50),
+  deliveryAddress1: z.string().min(2).max(50).optional(),
   deliveryAddress2: z.string().max(50),
-  deliveryZipcode: z.string().min(4).max(4),
+  deliveryZipcode: z.string().length(4),
   deliveryProvince: z.string(),
   deliveryCity: z.string(),
   deliveryCountry: z.string(),
@@ -52,6 +42,13 @@ const FormSchema = z.object({
 
 const PointToPointForm = () => {
   const [isClient, setIsClient] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [pickupCities, setPickupCities] = useState([]);
+  const [deliveryCities, setDeliveryCities] = useState([]);
+  const [rates, setRates] = useState([]);
+  const [caclRates, setCalcRates] = useState([]);
+  const [initialLoad, setInitialLoad] = useState(true);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -69,42 +66,6 @@ const PointToPointForm = () => {
       deliveryCountry: undefined,
     },
   });
-  const computeRates = (data) => {
-    const metroManilaCode = "000000000";
-    if (
-      data.pickupProvince == metroManilaCode &&
-      data.deliveryProvince == metroManilaCode
-    ) {
-      // setRates();
-    } else if (
-      (data.pickupProvince !== metroManilaCode &&
-        data.deliveryProvince !== metroManilaCode) ||
-      (data.pickupProvince == metroManilaCode &&
-        data.deliveryProvince !== metroManilaCode) ||
-      (data.pickupProvince !== metroManilaCode &&
-        data.deliveryProvince == metroManilaCode)
-    ) {
-      let filteredRates = rates.filter((rate) => !rate.isOnDemand);
-      setRates(filteredRates);
-    }
-  };
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log("julie submit", data);
-    computeRates(data);
-    // toast({
-    //   title: "You submitted the following values:",
-    //   description: (
-    //     <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-    //       <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-    //     </pre>
-    //   ),
-    // });
-  }
-  const [provinces, setProvinces] = useState([]);
-  const [pickupCities, setPickupCities] = useState([]);
-  const [deliveryCities, setDeliveryCities] = useState([]);
-  const [rates, setRates] = useState([]);
-
   useEffect(() => {
     setIsClient(true);
     fetchProvinces();
@@ -113,16 +74,13 @@ const PointToPointForm = () => {
   const fetchRates = () => {
     const response = JSON.parse(JSON.stringify(ratesData));
     setRates(response);
-    console.log("julie rates", response);
   };
   const fetchProvinces = async () => {
     try {
       const response = await axios.get("https://psgc.gitlab.io/api/provinces/");
-      console.log("julie res", response.data);
       const provinceList = response.data;
       provinceList.push({ code: "000000000", name: "Metro Manila" });
-      setProvinces(provinceList.sort());
-      console.log("julie priov", provinceList);
+      setProvinces(provinceList.sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
       console.error("Error fetching provinces:", error);
     }
@@ -130,19 +88,18 @@ const PointToPointForm = () => {
 
   const fetchCities = async (provinceCode, setter) => {
     type City = {
-      provinceCode: String;
-      code: String;
-      name: String;
-      districtCode: Boolean;
-      isCapital: Boolean;
-      islandGroupCode: String;
-      oldName: String;
-      psgc10DigitCode: String;
-      regionCode: String;
+      provinceCode: string;
+      code: string;
+      name: string;
+      districtCode: boolean;
+      isCapital: boolean;
+      islandGroupCode: string;
+      oldName: string;
+      psgc10DigitCode: string;
+      regionCode: string;
     };
     let citiesList: City[] = [];
     if (provinceCode == "000000000") {
-      console.log("julie metro");
       citiesList.push(
         {
           code: "1",
@@ -206,20 +163,46 @@ const PointToPointForm = () => {
         const response = await axios.get(
           `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities`
         );
-        console.log("julie city", provinceCode, response.data);
-
-        console.log("julie not metro", response.data);
-
         setter(response.data);
       } catch (error) {
         console.error("Error fetching cities:", error);
       }
     }
   };
+  function onSubmit(data: z.infer<typeof FormSchema>) {
+    setInitialLoad(false);
+    computeRates(data);
+  }
+  const computeRates = (data) => {
+    type Rate = {
+      isOnDemand: boolean;
+      courier: string;
+      rateMetroManila: number;
+      rateOutside: number;
+    };
+    fetchRates();
+
+    const metroManilaCode = "000000000";
+    if (
+      data.pickupProvince == metroManilaCode &&
+      data.deliveryProvince == metroManilaCode
+    ) {
+      setCalcRates(rates);
+    } else if (
+      (data.pickupProvince !== metroManilaCode &&
+        data.deliveryProvince !== metroManilaCode) ||
+      (data.pickupProvince == metroManilaCode &&
+        data.deliveryProvince !== metroManilaCode) ||
+      (data.pickupProvince !== metroManilaCode &&
+        data.deliveryProvince == metroManilaCode)
+    ) {
+      let filteredRates = rates.filter((rate: Rate) => !rate.isOnDemand);
+      setCalcRates(filteredRates);
+    }
+  };
 
   const onChangeSelect = (e, field, setter) => {
     field.onChange(e);
-    // field.value = e;
     fetchCities(e, setter);
   };
   const getPickupInputs = () => {
@@ -234,7 +217,6 @@ const PointToPointForm = () => {
               <FormControl>
                 <Input placeholder="Enter Address 1" {...field} />
               </FormControl>
-
               <FormMessage />
             </FormItem>
           )}
@@ -246,7 +228,11 @@ const PointToPointForm = () => {
             <FormItem>
               <FormLabel>Address 2</FormLabel>
               <FormControl>
-                <Input placeholder="Enter Address 2" {...field} />
+                <Input
+                  required={false}
+                  placeholder="Enter Address 2"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -296,7 +282,11 @@ const PointToPointForm = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>City</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                required={true}
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue
@@ -329,6 +319,7 @@ const PointToPointForm = () => {
                 onValueChange={field.onChange}
                 defaultValue={field.value}
                 value={field.value}
+                required={true}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -387,7 +378,11 @@ const PointToPointForm = () => {
             <FormItem>
               <FormLabel>Address 2</FormLabel>
               <FormControl>
-                <Input placeholder="Enter Address 2" {...field} />
+                <Input
+                  required={false}
+                  placeholder="Enter Address 2"
+                  {...field}
+                />
               </FormControl>
 
               <FormMessage />
@@ -418,7 +413,7 @@ const PointToPointForm = () => {
                     />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent className="max-h-96">
                   {provinces &&
                     provinces.length > 0 &&
                     provinces.map(({ code, name }, index) => (
@@ -438,7 +433,11 @@ const PointToPointForm = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>City</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                required={true}
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue
@@ -505,6 +504,16 @@ const PointToPointForm = () => {
       </>
     );
   };
+  const getCourierRatesTable = () => {
+    if (initialLoad) {
+      return (
+        <p className="text-slate-500 text-center">
+          Input your pickup and delivery details to view the couriers available.
+        </p>
+      );
+    }
+    return <CourierTable rates={caclRates} />;
+  };
   return (
     isClient && (
       <main className="flex ">
@@ -513,20 +522,19 @@ const PointToPointForm = () => {
             onSubmit={form.handleSubmit(onSubmit)}
             className="w-full min-h-screen h-full p-5 flex flex-col justify-between [&>div:not(:first-child)]:border-t-2 border-border  "
           >
-            <div>
-              <h2 className="text-xl font-bold"> Pickup</h2>
-              <h4 className="text-large text-slate-700">
-                Please input your pickup details
-              </h4>
-              <div className="grid grid-cols-2 gap-4 ">{getPickupInputs()}</div>
-            </div>
-            <div className="mt-5 py-5">
-              <h2 className="text-xl font-bold">Delivery</h2>{" "}
-              <h4>Please input your Delivery details</h4>
-              <div className="grid grid-cols-2 gap-4 ">
-                {getDeliveryInputs()}
-              </div>
-            </div>
+            <Portlet
+              header={"Pickup"}
+              subHeader={"Please input your Pickup details"}
+            >
+              {getPickupInputs()}
+            </Portlet>
+            <Portlet
+              className="mt-5 py-5"
+              header={"Delivery"}
+              subHeader={" Please input your Delivery details"}
+            >
+              {getDeliveryInputs()}
+            </Portlet>
 
             <Button
               className="w-full bg-sky-600 hover:bg-sky-700"
@@ -538,47 +546,10 @@ const PointToPointForm = () => {
         </Form>
         <section className="w-full bg-sky-100 h-auto min-h-screen mx-0 flex justify-center items-center">
           <div className="flex flex-col items-center max-w-lg justify-center p-4 bg-white rounded-lg border-border border-2">
-            <h2 className="text-xl text-primary font-bold">Courier Rates</h2>
-
-            <Table>
-              <TableCaption>Courier Rates</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Courier</TableHead>
-                  <TableHead className="text-right">
-                    Delivery to Metro Manila
-                  </TableHead>
-                  <TableHead className="text-right">
-                    Delivery outside Metro Manila
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rates != null &&
-                  rates.length > 0 &&
-                  rates.map(
-                    (
-                      { courier, rateMetroManila, rateOutside, isOnDemand },
-                      index
-                    ) => {
-                      return (
-                        <TableRow key={courier + index}>
-                          <TableCell className="font-medium">
-                            {courier}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {rateMetroManila}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {/* if on demand, no delivery outside metro manila */}
-                            {!isOnDemand ? rateOutside : "N/A"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-                  )}
-              </TableBody>
-            </Table>
+            <h2 className="mb-2 text-xl text-primary font-bold">
+              Courier Rates
+            </h2>
+            {getCourierRatesTable()}
           </div>
         </section>
       </main>
