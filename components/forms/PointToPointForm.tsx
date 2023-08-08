@@ -2,6 +2,7 @@
 import React, { useState, Fragment, useEffect } from "react";
 import axios from "axios";
 import ratesData from "./rates.json";
+import { searchProvince, searchBaranggay } from "ph-geo-admin-divisions";
 import {
   Select,
   SelectContent,
@@ -68,17 +69,36 @@ const PointToPointForm = () => {
       deliveryCountry: undefined,
     },
   });
-
+  const computeRates = (data) => {
+    const metroManilaCode = "000000000";
+    if (
+      data.pickupProvince == metroManilaCode &&
+      data.deliveryProvince == metroManilaCode
+    ) {
+      // setRates();
+    } else if (
+      (data.pickupProvince !== metroManilaCode &&
+        data.deliveryProvince !== metroManilaCode) ||
+      (data.pickupProvince == metroManilaCode &&
+        data.deliveryProvince !== metroManilaCode) ||
+      (data.pickupProvince !== metroManilaCode &&
+        data.deliveryProvince == metroManilaCode)
+    ) {
+      let filteredRates = rates.filter((rate) => !rate.isOnDemand);
+      setRates(filteredRates);
+    }
+  };
   function onSubmit(data: z.infer<typeof FormSchema>) {
     console.log("julie submit", data);
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
+    computeRates(data);
+    // toast({
+    //   title: "You submitted the following values:",
+    //   description: (
+    //     <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
+    //       <code className="text-white">{JSON.stringify(data, null, 2)}</code>
+    //     </pre>
+    //   ),
+    // });
   }
   const [provinces, setProvinces] = useState([]);
   const [pickupCities, setPickupCities] = useState([]);
@@ -91,41 +111,113 @@ const PointToPointForm = () => {
     fetchRates();
   }, []);
   const fetchRates = () => {
-    fetch(
-      "https://github.com/juliennedc/shipmates-testapp/blob/main/components/forms/rates.json"
-    )
-      .then((response) => {
-        return response.json();
-      })
-      .then((data) => {
-        setRates(data);
-      });
+    const response = JSON.parse(JSON.stringify(ratesData));
+    setRates(response);
+    console.log("julie rates", response);
   };
   const fetchProvinces = async () => {
     try {
       const response = await axios.get("https://psgc.gitlab.io/api/provinces/");
       console.log("julie res", response.data);
       const provinceList = response.data;
-      setProvinces(provinceList);
+      provinceList.push({ code: "000000000", name: "Metro Manila" });
+      setProvinces(provinceList.sort());
+      console.log("julie priov", provinceList);
     } catch (error) {
       console.error("Error fetching provinces:", error);
     }
   };
 
   const fetchCities = async (provinceCode, setter) => {
-    try {
-      const response = await axios.get(
-        `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities`
+    type City = {
+      provinceCode: String;
+      code: String;
+      name: String;
+      districtCode: Boolean;
+      isCapital: Boolean;
+      islandGroupCode: String;
+      oldName: String;
+      psgc10DigitCode: String;
+      regionCode: String;
+    };
+    let citiesList: City[] = [];
+    if (provinceCode == "000000000") {
+      console.log("julie metro");
+      citiesList.push(
+        {
+          code: "1",
+          name: " Manila",
+          provinceCode: "000000000",
+          districtCode: false,
+          isCapital: false,
+          islandGroupCode: "N/A",
+          oldName: "",
+          psgc10DigitCode: "000000000",
+          regionCode: "120000000",
+        },
+        {
+          code: "2",
+          name: " Makati",
+          provinceCode: "000000000",
+          districtCode: false,
+          isCapital: false,
+          islandGroupCode: "N/A",
+          oldName: "",
+          psgc10DigitCode: "000000000",
+          regionCode: "120000000",
+        },
+        {
+          code: "3",
+          name: " Quezon City",
+          provinceCode: "000000000",
+          districtCode: false,
+          isCapital: false,
+          islandGroupCode: "N/A",
+          oldName: "",
+          psgc10DigitCode: "000000000",
+          regionCode: "120000000",
+        },
+        {
+          code: "4",
+          name: "Pasay",
+          provinceCode: "000000000",
+          districtCode: false,
+          isCapital: false,
+          islandGroupCode: "N/A",
+          oldName: "",
+          psgc10DigitCode: "000000000",
+          regionCode: "120000000",
+        },
+        {
+          code: "5",
+          name: "Taguig",
+          provinceCode: "000000000",
+          districtCode: false,
+          isCapital: false,
+          islandGroupCode: "N/A",
+          oldName: "",
+          psgc10DigitCode: "000000000",
+          regionCode: "120000000",
+        }
       );
-      console.log("julie city", provinceCode, response.data);
-      setter(response.data);
-    } catch (error) {
-      console.error("Error fetching cities:", error);
+      setter(citiesList);
+    } else {
+      try {
+        const response = await axios.get(
+          `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities`
+        );
+        console.log("julie city", provinceCode, response.data);
+
+        console.log("julie not metro", response.data);
+
+        setter(response.data);
+      } catch (error) {
+        console.error("Error fetching cities:", error);
+      }
     }
   };
 
   const onChangeSelect = (e, field, setter) => {
-    console.log("julie field", e, field);
     field.onChange(e);
     // field.value = e;
     fetchCities(e, setter);
@@ -454,10 +546,10 @@ const PointToPointForm = () => {
                 <TableRow>
                   <TableHead className="w-[100px]">Courier</TableHead>
                   <TableHead className="text-right">
-                    Rates(Within Metro Manila)
+                    Delivery to Metro Manila
                   </TableHead>
                   <TableHead className="text-right">
-                    Rates(Outside Metro Manila)
+                    Delivery outside Metro Manila
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -465,7 +557,10 @@ const PointToPointForm = () => {
                 {rates != null &&
                   rates.length > 0 &&
                   rates.map(
-                    ({ courier, rateMetroManila, rateOutside }, index) => {
+                    (
+                      { courier, rateMetroManila, rateOutside, isOnDemand },
+                      index
+                    ) => {
                       return (
                         <TableRow key={courier + index}>
                           <TableCell className="font-medium">
@@ -475,7 +570,8 @@ const PointToPointForm = () => {
                             {rateMetroManila}
                           </TableCell>
                           <TableCell className="text-right">
-                            {rateOutside}
+                            {/* if on demand, no delivery outside metro manila */}
+                            {!isOnDemand ? rateOutside : "N/A"}
                           </TableCell>
                         </TableRow>
                       );
@@ -483,13 +579,6 @@ const PointToPointForm = () => {
                   )}
               </TableBody>
             </Table>
-
-            <table>
-              <thead>
-                <tr>Courier</tr>
-                <tr>Within Metro Manila</tr>
-              </thead>
-            </table>
           </div>
         </section>
       </main>

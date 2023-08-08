@@ -12,13 +12,13 @@
     "rateOutside": null
   },
   {
-    "isOnDemand": true,
+    "isOnDemand": false,
     "courier": "J&T Express",
     "rateMetroManila": 80,
     "rateOutside": 100
   },
   {
-    "isOnDemand": true,
+    "isOnDemand": false,
     "courier": "LBC",
     "rateMetroManila": 100,
     "rateOutside": 120

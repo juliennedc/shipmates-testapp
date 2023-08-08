@@ -27,6 +27,6 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "app2/font.tsz"
-  ],
+, "src/app/page.js", "postcss.config.js", "postcss.config.js", "postcss.config.js", "src/app/layout.js", "src/app/page.js", "postcss.config.js"  ],
   "exclude": ["node_modules"]
 }
