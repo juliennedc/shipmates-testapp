@@ -2,11 +2,11 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
-	],
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   theme: {
     container: {
       center: true,
@@ -17,6 +17,19 @@ module.exports = {
     },
     extend: {
       colors: {
+        "azure-radiance": {
+          50: "hsl(197, 100%, 96%)",
+          100: "hsl(199, 100%, 92%)",
+          200: "hsl(197, 100%, 85%)",
+          300: "hsl(195, 100%, 76%)",
+          400: "hsl(197, 100%, 64%)",
+          500: "hsl(202, 100%, 56%)",
+          600: "hsl(207, 100%, 51%)",
+          700: "hsl(211, 100%, 50%)",
+          800: "hsl(213, 92%, 40%)",
+          900: "hsl(211, 85%, 33%)",
+          950: "hsl(213, 74%, 21%)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -73,4 +86,4 @@ module.exports = {
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};

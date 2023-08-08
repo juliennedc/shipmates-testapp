@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, Fragment, useEffect } from "react";
 import axios from "axios";
+import ratesData from "./rates.json";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,15 @@ import {
   FormLabel,
   FormMessage,
 } from "../ui/form";
-
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -41,6 +50,7 @@ const FormSchema = z.object({
 });
 
 const PointToPointForm = () => {
+  const [isClient, setIsClient] = useState(false);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -73,12 +83,24 @@ const PointToPointForm = () => {
   const [provinces, setProvinces] = useState([]);
   const [pickupCities, setPickupCities] = useState([]);
   const [deliveryCities, setDeliveryCities] = useState([]);
-  const [results, setResults] = useState([]);
+  const [rates, setRates] = useState([]);
 
   useEffect(() => {
+    setIsClient(true);
     fetchProvinces();
+    fetchRates();
   }, []);
-
+  const fetchRates = () => {
+    fetch(
+      "https://github.com/juliennedc/shipmates-testapp/blob/main/components/forms/rates.json"
+    )
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        setRates(data);
+      });
+  };
   const fetchProvinces = async () => {
     try {
       const response = await axios.get("https://psgc.gitlab.io/api/provinces/");
@@ -92,7 +114,6 @@ const PointToPointForm = () => {
 
   const fetchCities = async (provinceCode, setter) => {
     try {
-      console.log("julie prov", provinceCode);
       const response = await axios.get(
         `https://psgc.gitlab.io/api/provinces/${provinceCode}/cities`
       );
@@ -111,7 +132,7 @@ const PointToPointForm = () => {
   };
   const getPickupInputs = () => {
     return (
-      <>
+      <Fragment>
         <FormField
           control={form.control}
           name="pickupAddress1"
@@ -163,7 +184,7 @@ const PointToPointForm = () => {
                     />
                   </SelectTrigger>
                 </FormControl>
-                <SelectContent>
+                <SelectContent className="max-h-96">
                   {provinces &&
                     provinces.length > 0 &&
                     provinces.map(({ code, name }, index) => (
@@ -247,7 +268,7 @@ const PointToPointForm = () => {
             </FormItem>
           )}
         />
-      </>
+      </Fragment>
     );
   };
   const getDeliveryInputs = () => {
@@ -276,9 +297,7 @@ const PointToPointForm = () => {
               <FormControl>
                 <Input placeholder="Enter Address 2" {...field} />
               </FormControl>
-              <FormDescription>
-                This is your public display name.
-              </FormDescription>
+
               <FormMessage />
             </FormItem>
           )}
@@ -395,18 +414,86 @@ const PointToPointForm = () => {
     );
   };
   return (
-    <main>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="w-2/3 space-y-6"
-        >
-          {getPickupInputs()}
-          {getDeliveryInputs()}
-          <Button type="submit">Submit</Button>
-        </form>
-      </Form>
-    </main>
+    isClient && (
+      <main className="flex ">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="w-full min-h-screen h-full p-5 flex flex-col justify-between [&>div:not(:first-child)]:border-t-2 border-border  "
+          >
+            <div>
+              <h2 className="text-xl font-bold"> Pickup</h2>
+              <h4 className="text-large text-slate-700">
+                Please input your pickup details
+              </h4>
+              <div className="grid grid-cols-2 gap-4 ">{getPickupInputs()}</div>
+            </div>
+            <div className="mt-5 py-5">
+              <h2 className="text-xl font-bold">Delivery</h2>{" "}
+              <h4>Please input your Delivery details</h4>
+              <div className="grid grid-cols-2 gap-4 ">
+                {getDeliveryInputs()}
+              </div>
+            </div>
+
+            <Button
+              className="w-full bg-sky-600 hover:bg-sky-700"
+              type="submit"
+            >
+              Submit
+            </Button>
+          </form>
+        </Form>
+        <section className="w-full bg-sky-100 h-auto min-h-screen mx-0 flex justify-center items-center">
+          <div className="flex flex-col items-center max-w-lg justify-center p-4 bg-white rounded-lg border-border border-2">
+            <h2 className="text-xl text-primary font-bold">Courier Rates</h2>
+
+            <Table>
+              <TableCaption>Courier Rates</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Courier</TableHead>
+                  <TableHead className="text-right">
+                    Rates(Within Metro Manila)
+                  </TableHead>
+                  <TableHead className="text-right">
+                    Rates(Outside Metro Manila)
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rates != null &&
+                  rates.length > 0 &&
+                  rates.map(
+                    ({ courier, rateMetroManila, rateOutside }, index) => {
+                      return (
+                        <TableRow key={courier + index}>
+                          <TableCell className="font-medium">
+                            {courier}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {rateMetroManila}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {rateOutside}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                  )}
+              </TableBody>
+            </Table>
+
+            <table>
+              <thead>
+                <tr>Courier</tr>
+                <tr>Within Metro Manila</tr>
+              </thead>
+            </table>
+          </div>
+        </section>
+      </main>
+    )
   );
 };
 
